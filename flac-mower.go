@@ -1,10 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,34 +13,91 @@ func main() {
 	var sourceDir = os.Getenv("HOME") + "/Usenext/wizard"
 
 	fmt.Printf("Using source directory %s\n", sourceDir)
-	flacDirs(sourceDir)
+	var fds = flacDirs(sourceDir)
+	for _, fd := range fds {
+		fmt.Printf("Flac directory %s\n", fd)
+	}
 }
 
 // List of directories that contain .flac files in first nested level
-func flacDirs(dir string) {
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		log.Fatalf("Cannot list directory %s, check ${HOME} or permissions\n", dir)
-	}
+func flacDirs(basedir string) []string {
 	// Filter directories that contain .flac files
-	for _, fi := range files {
-		if containsFlacFiles(fi.Name()) {
-			fmt.Println(fi.Name())
+	var pattern = fmt.Sprintf("%s/**/*.flac", basedir)
+	matches, err := filepath.Glob(pattern)
+	// Glob ignores IO errors, error means pattern is bad
+	if err != nil {
+		log.Fatalf("Bad wildcard %s\n", pattern)
+	}
+	var flacs = []string{}
+	for _, m := range matches {
+		if !isFlacFilename(m) {
+			log.Fatalf("Internal error: flac file is no flac file")
+		}
+		if isFlacContent(m) {
+			flacs = append(flacs, m)
+		} else {
+			// log.Printf("Skipping fake flac file %s\n", m)
 		}
 	}
+	var uniqueDirs = make(map[string]bool)
+	for _, f := range flacs {
+		var parent = filepath.Dir(f)
+		uniqueDirs[parent] = true
+	}
+	return keys(uniqueDirs)
 }
 
-func containsFlacFiles(dir string) bool {
-	files, err := ioutil.ReadDir(dir)
+// Elaborate man's flac detection
+func isFlacContent(filename string) bool {
+	f, err := os.Open(filename)
 	if err != nil {
-		log.Printf("Cannot list directory %s\n", dir)
+		log.Printf("Cannot read from %s, ignoring", filename)
+		return false
 	}
-	var hasFlac = false
-	for _, fi := range files {
-		if strings.HasSuffix(fi.Name(), ".flac") {
-			hasFlac = true
-			break
+	buf := make([]byte, 4)
+	n, err := f.Read(buf)
+	if err != nil {
+		log.Printf("Ignoring internal error %v\n", err)
+		return false
+	}
+	if n != 4 {
+		log.Printf("Cannot read from %s\n", filename)
+		return false
+	}
+	var b = isFlacPrefix(buf)
+	// log.Printf("File %s has flac content: %v\n", filename, b)
+	return b
+}
+
+// Poor man's flac detection
+func isFlacFilename(filename string) bool {
+	return strings.HasSuffix(filename, ".flac")
+}
+
+func isFlacPrefix(buf []byte) bool {
+	var expected = "fLaC"
+	// log.Printf("Comparing expected %s against %s: ", expected, string(buf))
+	var matches = 0 == bytes.Compare([]byte(expected), buf)
+	// log.Printf("matches = %v\n", matches)
+	return matches
+}
+
+func keys(s map[string]bool) []string {
+	keys := make([]string, len(s))
+
+	i := 0
+	for k := range s {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
+func remove(s []string, r string) []string {
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
 		}
 	}
-	return hasFlac
+	return s
 }
