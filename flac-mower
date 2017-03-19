@@ -1,0 +1,27 @@
+#!/bin/bash
+
+FROMDIR="${HOME}/Usenext/wizard"
+if [ ! -d "${FROMDIR}" ]; then
+    print "Missing input directory ${FROMDIR}"
+    exit 1
+fi
+
+function doFlacDir() {
+    PROSPET=$1
+    echo "Proc ${PROSPECT}"
+    exit 2
+}
+
+# Locate directories with flacs in it
+# xargs and dirname don't play well with spaces in filenames
+PROSPECTS=$(find "${FROMDIR}" -type f -name '*.flac' -exec dirname "{}" \;|sort|uniq)
+
+# Only process one level deep folder
+for PROSPECT in "${PROSPECTS}"; do
+  if [ "${FROMDIR}" == "${PROSPECT}" ]; then
+    echo "Skipping nested folder ${PROSPECT}"
+  else
+    doFlacDir "${PROSPECT}"
+  fi
+done
+

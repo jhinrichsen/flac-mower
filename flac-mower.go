@@ -28,17 +28,7 @@ func flacDirs(basedir string) []string {
 	if err != nil {
 		log.Fatalf("Bad wildcard %s\n", pattern)
 	}
-	var flacs = []string{}
-	for _, m := range matches {
-		if !isFlacFilename(m) {
-			log.Fatalf("Internal error: flac file is no flac file")
-		}
-		if isFlacContent(m) {
-			flacs = append(flacs, m)
-		} else {
-			// log.Printf("Skipping fake flac file %s\n", m)
-		}
-	}
+	var flacs = filter(matches, isFlacContent)
 	var uniqueDirs = make(map[string]bool)
 	for _, f := range flacs {
 		var parent = filepath.Dir(f)
@@ -80,6 +70,16 @@ func isFlacPrefix(buf []byte) bool {
 	var matches = 0 == bytes.Compare([]byte(expected), buf)
 	// log.Printf("matches = %v\n", matches)
 	return matches
+}
+
+func filter(vs []string, f func(string) bool) []string {
+	vsf := make([]string, 0)
+	for _, v := range vs {
+		if f(v) {
+			vsf = append(vsf, v)
+		}
+	}
+	return vsf
 }
 
 func keys(s map[string]bool) []string {
