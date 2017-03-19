@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -13,28 +14,47 @@ func main() {
 	var sourceDir = os.Getenv("HOME") + "/Usenext/wizard"
 
 	fmt.Printf("Using source directory %s\n", sourceDir)
-	var fds = flacDirs(sourceDir)
-	for _, fd := range fds {
-		fmt.Printf("Flac directory %s\n", fd)
+	var flacs = findFlacFiles(sourceDir)
+	sort.Strings(flacs)
+	for _, d := range uniqueDirs(flacs) {
+		// Only use flacs from current directory. While this is not strictly
+		// necessary, it adds some security (same metadata for complete
+		// folder e.a.)
+		var fs = filter(flacs, func(filename string) bool {
+			return strings.HasPrefix(filename, d)
+		})
+		fmt.Println(fs)
+		break
 	}
 }
 
-// List of directories that contain .flac files in first nested level
-func flacDirs(basedir string) []string {
-	// Filter directories that contain .flac files
+// Beginning from basedir, recursively find all .flac files
+func findFlacFiles(basedir string) []string {
 	var pattern = fmt.Sprintf("%s/**/*.flac", basedir)
 	matches, err := filepath.Glob(pattern)
 	// Glob ignores IO errors, error means pattern is bad
 	if err != nil {
 		log.Fatalf("Bad wildcard %s\n", pattern)
 	}
-	var flacs = filter(matches, isFlacContent)
-	var uniqueDirs = make(map[string]bool)
-	for _, f := range flacs {
+	return matches
+}
+
+func filterFlacContent(filenames []string) []string {
+	return filter(filenames, isFlacContent)
+}
+
+func uniqueDirs(dirs []string) []string {
+	var u = make(map[string]bool)
+	for _, f := range dirs {
 		var parent = filepath.Dir(f)
-		uniqueDirs[parent] = true
+		u[parent] = true
 	}
-	return keys(uniqueDirs)
+	return keys(u)
+}
+
+// Poor man's flac detection
+func isFlacFilename(filename string) bool {
+	return strings.HasSuffix(filename, ".flac")
 }
 
 // Elaborate man's flac detection
@@ -57,11 +77,6 @@ func isFlacContent(filename string) bool {
 	var b = isFlacPrefix(buf)
 	// log.Printf("File %s has flac content: %v\n", filename, b)
 	return b
-}
-
-// Poor man's flac detection
-func isFlacFilename(filename string) bool {
-	return strings.HasSuffix(filename, ".flac")
 }
 
 func isFlacPrefix(buf []byte) bool {
