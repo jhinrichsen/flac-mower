@@ -13,7 +13,7 @@ import (
 func main() {
 	var sourceDir = os.Getenv("HOME") + "/Usenext/wizard"
 
-	fmt.Printf("Using source directory %s\n", sourceDir)
+	log.Printf("Using source directory %s\n", sourceDir)
 	var flacs = findFlacFiles(sourceDir)
 	sort.Strings(flacs)
 	for _, d := range uniqueDirs(flacs) {
@@ -23,8 +23,16 @@ func main() {
 		var fs = filter(flacs, func(filename string) bool {
 			return strings.HasPrefix(filename, d)
 		})
-		fmt.Println(fs)
+		doAlbum(fs)
 		break
+	}
+}
+
+func doAlbum(flacs []string) {
+	for _, f := range flacs {
+		log.Println(filepath.Base(f))
+
+		// TODO time for some metaflac voodoo
 	}
 }
 
