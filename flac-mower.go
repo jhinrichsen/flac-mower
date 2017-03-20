@@ -11,6 +11,10 @@ import (
 )
 
 func main() {
+	doNewFlacs()
+}
+
+func doNewFlacs() {
 	var sourceDir = os.Getenv("HOME") + "/Usenext/wizard"
 
 	log.Printf("Using source directory %s\n", sourceDir)
@@ -32,8 +36,29 @@ func doAlbum(flacs []string) {
 	for _, f := range flacs {
 		log.Println(filepath.Base(f))
 
-		// TODO time for some metaflac voodoo
+		var flac = readFlac(f)
+		var meta = flac.vorbisComments.comments
+		var d = defaultDestination(meta)
+		fmt.Println(d)
 	}
+}
+
+func defaultDestination(meta map[string]string) string {
+	return fmt.Sprintf("%s/%s/%s--%s",
+		meta["ARTIST"][0:1],
+		meta["ARTIST"],
+		meta["DATE"],
+		meta["ALBUM"])
+}
+
+func readFlac(filename string) Flac {
+	f, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	var flac, _ = parse(f)
+	return flac
 }
 
 // Beginning from basedir, recursively find all .flac files
@@ -72,6 +97,7 @@ func isFlacContent(filename string) bool {
 		log.Printf("Cannot read from %s, ignoring", filename)
 		return false
 	}
+	defer f.Close()
 	buf := make([]byte, 4)
 	n, err := f.Read(buf)
 	if err != nil {
